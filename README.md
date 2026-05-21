@@ -18,6 +18,10 @@ RAGFlow 代码遵循其原始 Apache-2.0 License，本项目保留 `vendor/ragfl
 - `auto` 模式优先尝试 DeepDoc，依赖或模型不可用时回退到普通文本抽取。
 - 任务状态完整落盘：`queued / parsing / done / failed`。
 - 解析结果以 JSON 保存，包含 `text`、`markdown`、`sections`、`tables` 和 `metadata`。
+- Markdown 输出会基于 DeepDoc 版面类型、DOCX Heading、编号标题和项目符号做轻量结构化合成；它不是完整的原文版式还原，但会尽量产出可读的标题和列表。
+- 代码文件会以 fenced code block 输出；PDF/DOCX 中连续出现的代码样式文本会用启发式规则合成为 Markdown 代码块。
+- 表格输出会过滤 DeepDoc 内部图片对象和坐标信息，HTML table 会转换为 Markdown 表格。
+- 内置 `/ui` 页面支持 Markdown 渲染预览、复制/下载结果，并会在刷新页面后恢复最近一次解析任务和结果。
 
 ## 快速启动
 
@@ -66,6 +70,12 @@ uv run ruff check app tests infinity scripts
 uv run pytest tests
 ```
 
+## 能力边界
+
+这个服务使用的是 RAGFlow DeepDoc 的 OCR、版面识别和表格识别内核，但没有完整启动 RAGFlow 平台里的全部解析、切分、索引、可视化校正和 LLM/VLM 增强链路。因此它更像“轻量文档解析 API”，不是完整 RAGFlow UI 的一比一复刻。
+
+尤其是 Markdown 结构化输出属于本服务的后处理：DeepDoc 通常能告诉我们文本框、标题、表格、位置等信息，但不会天然把每一段都还原成完美 Markdown。代码块、列表层级、跨页段落、复杂表格和图片说明都需要启发式或额外模型增强；当前实现会尽量识别简单代码块和标题列表，但复杂版式仍可能需要后续规则或人工校正。
+
 ## API
 
 测试页面：
@@ -73,6 +83,10 @@ uv run pytest tests
 ```bash
 open http://localhost:8010/ui
 ```
+
+`/ui` 里的 Markdown 标签页会把 `markdown` 字段渲染成预览 HTML，并保留解析文本中的换行；Text 和 JSON 标签页仍保留原始内容视图。结果区右上角的“复制”和“下载”会按当前标签页导出 Markdown、Text、JSON 或 Tables 内容。
+解析任务和结果会落盘到 `app/storage/results/`，强制刷新浏览器页面不会删除结果。页面的“清空”只清除当前浏览器里记住的最近任务和界面状态，不会删除服务端结果文件；只有显式删除对应存储文件或后续增加删除接口后调用删除，结果才会真正不存在。
+`GET /api/v1/documents/{doc_id}/result` 会在读取历史结果时用当前 `FormatService` 重新生成 `text` 和 `markdown`，因此旧结果可以受益于新版 Markdown 合成规则，不一定需要重新上传原文件。
 
 上传文档：
 

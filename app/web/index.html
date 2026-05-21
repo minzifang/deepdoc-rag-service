@@ -4,165 +4,269 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>DeepDoc Parse Console</title>
+
+    <!-- Markdown / sanitize / highlight (graceful fallback if CDN blocked) -->
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/styles/github.min.css"
+    />
+    <script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/lib/highlight.min.js" defer></script>
+
     <style>
       :root {
-        --ink: #1d252c;
-        --muted: #65707a;
-        --line: #d8dee3;
-        --paper: #f6f3eb;
-        --panel: #fffdf7;
-        --green: #177e68;
-        --teal: #155d65;
-        --amber: #b2641b;
-        --red: #b33d2e;
-        --black: #101418;
-        --shadow: 0 18px 48px rgba(29, 37, 44, 0.12);
+        --bg: #f7f8fb;
+        --surface: #ffffff;
+        --surface-2: #f3f4f7;
+        --border: #e6e8ee;
+        --border-strong: #d4d8e0;
+        --ink: #1a1d23;
+        --ink-2: #4a5160;
+        --muted: #8a93a3;
+        --brand: #5b6cff;
+        --brand-soft: #eef0ff;
+        --brand-ink: #3a49d8;
+        --success: #10b981;
+        --success-soft: #e6f7f0;
+        --warn: #f59e0b;
+        --danger: #ef4444;
+        --danger-soft: #fdecec;
+        --radius: 12px;
+        --radius-sm: 8px;
+        --shadow-sm: 0 1px 2px rgba(16, 24, 40, 0.04);
+        --shadow-md: 0 4px 16px rgba(16, 24, 40, 0.06);
+        --shadow-lg: 0 12px 32px rgba(16, 24, 40, 0.08);
+        --font:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+          "Hiragino Sans GB", "Microsoft YaHei", system-ui, sans-serif;
+        --mono:
+          "SFMono-Regular", "JetBrains Mono", "Fira Code", Menlo, Consolas, monospace;
       }
 
       * {
         box-sizing: border-box;
       }
 
+      html,
+      body {
+        height: 100%;
+      }
+
       body {
         margin: 0;
-        min-height: 100vh;
+        font-family: var(--font);
         color: var(--ink);
-        font-family: "Avenir Next", "PingFang SC", "Hiragino Sans GB", sans-serif;
-        background:
-          linear-gradient(90deg, rgba(16, 20, 24, 0.035) 1px, transparent 1px),
-          linear-gradient(rgba(16, 20, 24, 0.035) 1px, transparent 1px),
-          var(--paper);
-        background-size: 28px 28px;
+        background: var(--bg);
+        font-size: 14px;
+        line-height: 1.5;
+        -webkit-font-smoothing: antialiased;
       }
 
       button,
       input,
-      select {
+      select,
+      textarea {
         font: inherit;
+        color: inherit;
       }
 
+      /* ---------- Layout shell ---------- */
       .shell {
-        width: min(1440px, calc(100vw - 32px));
+        display: flex;
+        flex-direction: column;
+        height: 100vh;
+        min-height: 0;
+        max-width: 1480px;
         margin: 0 auto;
-        padding: 26px 0 34px;
+        padding: 20px 24px;
+        gap: 16px;
       }
 
       .topbar {
         display: flex;
-        align-items: end;
+        align-items: center;
         justify-content: space-between;
-        gap: 18px;
-        padding-bottom: 18px;
-        border-bottom: 2px solid var(--black);
+        gap: 16px;
+        flex-shrink: 0;
       }
 
       .brand {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+
+      .brand-mark {
         display: grid;
-        gap: 8px;
-      }
-
-      .brand h1 {
-        margin: 0;
-        font-size: clamp(28px, 4vw, 58px);
-        line-height: 0.95;
-        letter-spacing: 0;
-        font-weight: 900;
-      }
-
-      .brand p {
-        margin: 0;
-        max-width: 720px;
-        color: var(--muted);
-        font-size: 15px;
-      }
-
-      .health {
-        min-width: 170px;
-        padding: 10px 14px;
-        border: 2px solid var(--black);
-        background: var(--panel);
-        box-shadow: 5px 5px 0 var(--black);
-        text-align: right;
+        place-items: center;
+        width: 36px;
+        height: 36px;
+        border-radius: 10px;
+        background: linear-gradient(135deg, var(--brand) 0%, #8a6bff 100%);
+        color: #fff;
         font-weight: 800;
+        font-size: 16px;
+        letter-spacing: -0.02em;
+        box-shadow: var(--shadow-md);
       }
 
-      .health span {
-        display: block;
-        color: var(--green);
-        font-size: 13px;
+      .brand-text h1 {
+        margin: 0;
+        font-size: 18px;
+        font-weight: 700;
+        letter-spacing: -0.01em;
       }
 
+      .brand-text p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .health-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 12px;
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        background: var(--surface);
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--ink-2);
+        box-shadow: var(--shadow-sm);
+      }
+
+      .health-pill .dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--muted);
+        box-shadow: 0 0 0 3px rgba(138, 147, 163, 0.18);
+      }
+
+      .health-pill.online .dot {
+        background: var(--success);
+        box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.18);
+      }
+
+      .health-pill.offline .dot {
+        background: var(--danger);
+        box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.18);
+      }
+
+      /* ---------- Main grid: left ingest / right runner ---------- */
       .grid {
         display: grid;
-        grid-template-columns: minmax(330px, 430px) 1fr;
-        gap: 18px;
-        padding-top: 18px;
+        grid-template-columns: minmax(320px, 380px) minmax(0, 1fr);
+        gap: 16px;
+        flex: 1 1 auto;
+        min-height: 0;
       }
 
-      .panel {
-        border: 2px solid var(--black);
-        background: var(--panel);
-        box-shadow: var(--shadow);
+      .card {
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        box-shadow: var(--shadow-sm);
+        overflow: hidden;
       }
 
-      .panel header {
+      .card-header {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        gap: 10px;
-        min-height: 50px;
-        padding: 12px 14px;
-        border-bottom: 2px solid var(--black);
-        background: #efe7d2;
+        gap: 8px;
+        padding: 12px 16px;
+        border-bottom: 1px solid var(--border);
+        background: var(--surface);
       }
 
-      .panel h2 {
+      .card-title {
         margin: 0;
-        font-size: 15px;
-        letter-spacing: 0.08em;
+        font-size: 13px;
+        font-weight: 700;
+        letter-spacing: 0.02em;
+        color: var(--ink);
         text-transform: uppercase;
       }
 
-      .panel main {
-        padding: 14px;
+      .card-subtitle {
+        color: var(--muted);
+        font-size: 12px;
       }
 
+      .card-body {
+        flex: 1 1 auto;
+        min-height: 0;
+        padding: 16px;
+        overflow: auto;
+      }
+
+      /* Ingest panel body shouldn't scroll, form is short */
+      .ingest-body {
+        overflow: visible;
+      }
+
+      /* ---------- Dropzone ---------- */
       .drop {
         display: grid;
         place-items: center;
-        min-height: 190px;
-        padding: 22px;
-        border: 2px dashed #52606b;
-        background: #f9f7ef;
+        padding: 24px 16px;
+        border: 1.5px dashed var(--border-strong);
+        border-radius: var(--radius-sm);
+        background: var(--surface-2);
         cursor: pointer;
-        transition: transform 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+        transition: border-color 0.18s ease, background 0.18s ease, transform 0.18s ease;
+        text-align: center;
       }
 
       .drop:hover,
       .drop.drag {
-        transform: translateY(-2px);
-        border-color: var(--green);
-        background: #edf5ef;
+        border-color: var(--brand);
+        background: var(--brand-soft);
+      }
+
+      .drop-icon {
+        display: grid;
+        place-items: center;
+        width: 40px;
+        height: 40px;
+        margin-bottom: 10px;
+        border-radius: 10px;
+        background: var(--surface);
+        color: var(--brand);
+        border: 1px solid var(--border);
       }
 
       .drop strong {
         display: block;
-        margin-bottom: 8px;
-        font-size: 22px;
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--ink);
       }
 
       .drop small {
+        display: block;
+        margin-top: 4px;
         color: var(--muted);
+        font-size: 12px;
       }
 
       .file-name {
         margin: 12px 0 0;
-        min-height: 24px;
-        color: var(--teal);
-        font-weight: 800;
+        min-height: 20px;
+        color: var(--brand-ink);
+        font-weight: 600;
+        font-size: 13px;
         word-break: break-all;
       }
 
+      /* ---------- Form ---------- */
       .form-grid {
         display: grid;
         grid-template-columns: 1fr 1fr;
@@ -172,286 +276,625 @@
 
       .field {
         display: grid;
-        gap: 7px;
+        gap: 6px;
       }
 
       .field.wide {
         grid-column: 1 / -1;
       }
 
-      label {
-        color: var(--muted);
+      .field label {
+        color: var(--ink-2);
         font-size: 12px;
-        font-weight: 800;
-        letter-spacing: 0.06em;
-        text-transform: uppercase;
+        font-weight: 600;
       }
 
-      input,
-      select {
-        width: 100%;
-        height: 42px;
-        border: 2px solid var(--black);
-        border-radius: 0;
-        background: #fff;
-        color: var(--ink);
+      .field input,
+      .field select {
+        height: 36px;
         padding: 0 10px;
+        border: 1px solid var(--border-strong);
+        border-radius: var(--radius-sm);
+        background: var(--surface);
         outline: none;
+        transition: border-color 0.15s ease, box-shadow 0.15s ease;
       }
 
-      input:focus,
-      select:focus {
-        border-color: var(--green);
-        box-shadow: 0 0 0 3px rgba(23, 126, 104, 0.16);
+      .field input:focus,
+      .field select:focus {
+        border-color: var(--brand);
+        box-shadow: 0 0 0 3px rgba(91, 108, 255, 0.16);
       }
 
       .actions {
         display: flex;
-        gap: 10px;
+        gap: 8px;
         margin-top: 16px;
       }
 
       .btn {
-        height: 44px;
-        border: 2px solid var(--black);
-        background: var(--black);
-        color: #fff;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        height: 38px;
         padding: 0 16px;
+        border: 1px solid transparent;
+        border-radius: var(--radius-sm);
+        background: var(--brand);
+        color: #fff;
+        font-weight: 600;
+        font-size: 13px;
         cursor: pointer;
-        font-weight: 900;
-        box-shadow: 4px 4px 0 #c9b36f;
-        transition: transform 0.12s ease, box-shadow 0.12s ease;
+        transition: background 0.15s ease, box-shadow 0.15s ease, transform 0.05s ease;
+        box-shadow: var(--shadow-sm);
+      }
+
+      .btn:hover:not(:disabled) {
+        background: var(--brand-ink);
+      }
+
+      .btn:active:not(:disabled) {
+        transform: translateY(1px);
       }
 
       .btn.secondary {
-        background: #fff;
-        color: var(--black);
-        box-shadow: none;
+        background: var(--surface);
+        color: var(--ink);
+        border-color: var(--border-strong);
+      }
+
+      .btn.secondary:hover:not(:disabled) {
+        background: var(--surface-2);
       }
 
       .btn:disabled {
-        cursor: not-allowed;
         opacity: 0.55;
+        cursor: not-allowed;
       }
 
-      .btn:not(:disabled):active {
-        transform: translate(3px, 3px);
-        box-shadow: 1px 1px 0 #c9b36f;
+      /* ---------- Runner ---------- */
+      .runner-body {
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+        padding: 14px 16px 16px;
+        overflow: hidden;
       }
 
-      .status-strip {
+      .metric-row {
         display: grid;
-        grid-template-columns: repeat(4, minmax(120px, 1fr));
-        gap: 12px;
-        margin-bottom: 14px;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 10px;
+        flex-shrink: 0;
       }
 
       .metric {
-        min-height: 82px;
-        padding: 12px;
-        border: 2px solid var(--black);
-        background: #fff;
+        padding: 10px 12px;
+        border: 1px solid var(--border);
+        border-radius: var(--radius-sm);
+        background: var(--surface-2);
+        min-width: 0;
       }
 
       .metric span {
         display: block;
         color: var(--muted);
-        font-size: 12px;
-        font-weight: 800;
+        font-size: 11px;
+        font-weight: 600;
         text-transform: uppercase;
+        letter-spacing: 0.04em;
       }
 
       .metric strong {
         display: block;
-        margin-top: 8px;
-        font-size: 18px;
+        margin-top: 4px;
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--ink);
         word-break: break-all;
+        font-variant-numeric: tabular-nums;
+      }
+
+      .progress-wrap {
+        flex-shrink: 0;
+      }
+
+      .progress-meta {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 6px;
+        color: var(--ink-2);
+        font-size: 12px;
+        font-weight: 600;
+      }
+
+      .progress-meta .status-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 2px 8px;
+        border-radius: 999px;
+        background: var(--surface-2);
+        color: var(--ink-2);
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
+
+      .progress-meta .status-chip.queued {
+        background: #eef0ff;
+        color: var(--brand-ink);
+      }
+      .progress-meta .status-chip.parsing {
+        background: #fff4d6;
+        color: #92670a;
+      }
+      .progress-meta .status-chip.done {
+        background: var(--success-soft);
+        color: #06794d;
+      }
+      .progress-meta .status-chip.failed {
+        background: var(--danger-soft);
+        color: #b42525;
       }
 
       .progress {
         position: relative;
-        height: 18px;
+        height: 8px;
+        background: var(--surface-2);
+        border-radius: 999px;
         overflow: hidden;
-        border: 2px solid var(--black);
-        background: #fff;
       }
 
       .bar {
         width: 0%;
         height: 100%;
-        background: repeating-linear-gradient(135deg, var(--green) 0 10px, #39a58f 10px 20px);
-        transition: width 0.25s ease;
+        background: linear-gradient(90deg, var(--brand) 0%, #8a6bff 100%);
+        border-radius: 999px;
+        transition: width 0.3s ease;
       }
 
+      /* ---------- Workspace (timeline + result) ---------- */
       .workspace {
         display: grid;
-        grid-template-columns: 320px minmax(0, 1fr);
+        grid-template-columns: 280px minmax(0, 1fr);
         gap: 14px;
-        margin-top: 14px;
+        flex: 1 1 auto;
+        min-height: 0;
       }
 
-      .timeline,
-      .result {
-        min-height: 460px;
-        border: 2px solid var(--black);
-        background: #fff;
-      }
-
-      .section-title {
+      .pane {
         display: flex;
-        justify-content: space-between;
-        gap: 10px;
-        padding: 10px 12px;
-        border-bottom: 2px solid var(--black);
-        background: #edf1ef;
-        font-weight: 900;
+        flex-direction: column;
+        min-height: 0;
+        border: 1px solid var(--border);
+        border-radius: var(--radius-sm);
+        background: var(--surface);
+        overflow: hidden;
       }
 
-      .events {
-        max-height: 410px;
+      .pane-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        padding: 10px 12px;
+        border-bottom: 1px solid var(--border);
+        background: var(--surface-2);
+        font-size: 12px;
+        font-weight: 700;
+        color: var(--ink);
+      }
+
+      .pane-header .meta {
+        color: var(--muted);
+        font-weight: 600;
+      }
+
+      .pane-body {
+        flex: 1 1 auto;
+        min-height: 0;
         overflow: auto;
-        padding: 10px;
+      }
+
+      /* Timeline */
+      .events {
+        padding: 8px 12px;
       }
 
       .event {
+        position: relative;
         display: grid;
-        gap: 4px;
-        padding: 10px 0;
-        border-bottom: 1px solid var(--line);
+        gap: 2px;
+        padding: 10px 0 10px 16px;
+        border-bottom: 1px solid var(--border);
+      }
+
+      .event:last-child {
+        border-bottom: 0;
+      }
+
+      .event::before {
+        content: "";
+        position: absolute;
+        top: 16px;
+        left: 0;
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--brand);
+        box-shadow: 0 0 0 3px var(--brand-soft);
+      }
+
+      .event.failed::before {
+        background: var(--danger);
+        box-shadow: 0 0 0 3px var(--danger-soft);
+      }
+
+      .event.done::before {
+        background: var(--success);
+        box-shadow: 0 0 0 3px var(--success-soft);
       }
 
       .event strong {
-        color: var(--teal);
-        font-size: 13px;
+        font-size: 12px;
+        color: var(--ink);
+        font-weight: 600;
+      }
+
+      .event .meta {
+        color: var(--muted);
+        font-size: 11px;
       }
 
       .event p {
-        margin: 0;
-        color: var(--muted);
+        margin: 2px 0 0;
+        color: var(--ink-2);
         font-size: 12px;
-        line-height: 1.45;
+        line-height: 1.5;
       }
 
+      /* Result toolbar */
       .result-toolbar {
         display: flex;
+        align-items: center;
+        justify-content: space-between;
         gap: 8px;
-        padding: 10px;
-        border-bottom: 1px solid var(--line);
-        background: #fbfaf4;
+        flex-wrap: wrap;
+        padding: 8px 12px;
+        border-bottom: 1px solid var(--border);
+        background: var(--surface);
+        flex-shrink: 0;
+      }
+
+      .tabs {
+        display: inline-flex;
+        background: var(--surface-2);
+        border-radius: var(--radius-sm);
+        padding: 3px;
+        gap: 2px;
       }
 
       .tab-btn {
-        border: 2px solid var(--black);
-        background: #fff;
-        color: var(--black);
-        padding: 7px 10px;
-        cursor: pointer;
+        height: 28px;
+        padding: 0 12px;
+        border: 0;
+        background: transparent;
+        color: var(--ink-2);
+        font-weight: 600;
         font-size: 12px;
-        font-weight: 900;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: background 0.15s ease, color 0.15s ease;
+      }
+
+      .tab-btn:hover {
+        color: var(--ink);
       }
 
       .tab-btn.active {
-        background: var(--black);
-        color: #fff;
+        background: var(--surface);
+        color: var(--ink);
+        box-shadow: var(--shadow-sm);
+      }
+
+      .result-actions {
+        display: inline-flex;
+        gap: 6px;
+      }
+
+      .mini-btn {
+        height: 30px;
+        padding: 0 10px;
+        border: 1px solid var(--border-strong);
+        background: var(--surface);
+        color: var(--ink-2);
+        border-radius: 6px;
+        font-weight: 600;
+        font-size: 12px;
+        cursor: pointer;
+        transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+      }
+
+      .mini-btn:hover {
+        background: var(--surface-2);
+        color: var(--ink);
+        border-color: var(--border-strong);
       }
 
       .result-viewer {
-        max-height: 410px;
-        overflow: auto;
-        padding: 12px;
+        padding: 16px 18px;
       }
 
       .result-card {
+        margin-bottom: 12px;
         padding: 12px;
-        border: 2px solid var(--line);
-        margin-bottom: 10px;
-        background: #fffdf8;
+        border: 1px solid var(--border);
+        border-radius: var(--radius-sm);
+        background: var(--surface-2);
       }
 
       .result-card strong {
         display: flex;
         align-items: center;
-        justify-content: space-between;
-        gap: 10px;
+        gap: 8px;
         margin-bottom: 8px;
-        color: var(--amber);
+        color: var(--brand-ink);
         font-size: 12px;
-        font-weight: 900;
       }
 
-      .result-viewer pre,
-      .result-card pre {
+      .result-viewer pre {
         margin: 0;
         white-space: pre-wrap;
         word-break: break-word;
+        font-family: var(--mono);
+        font-size: 12.5px;
         line-height: 1.6;
-        color: #26333b;
-        font-family: "SFMono-Regular", "Cascadia Code", monospace;
+        color: var(--ink);
+      }
+
+      /* ---------- Markdown body ---------- */
+      .markdown-body {
+        color: var(--ink);
+        line-height: 1.7;
+        font-size: 14px;
+      }
+
+      .markdown-body > *:first-child {
+        margin-top: 0;
+      }
+
+      .markdown-body > *:last-child {
+        margin-bottom: 0;
+      }
+
+      .markdown-body h1,
+      .markdown-body h2,
+      .markdown-body h3,
+      .markdown-body h4,
+      .markdown-body h5,
+      .markdown-body h6 {
+        margin: 1.6em 0 0.6em;
+        color: var(--ink);
+        font-weight: 700;
+        line-height: 1.3;
+        letter-spacing: -0.01em;
+      }
+
+      .markdown-body h1 {
+        font-size: 26px;
+        padding-bottom: 0.3em;
+        border-bottom: 1px solid var(--border);
+      }
+      .markdown-body h2 {
+        font-size: 21px;
+        padding-bottom: 0.3em;
+        border-bottom: 1px solid var(--border);
+      }
+      .markdown-body h3 {
+        font-size: 17px;
+      }
+      .markdown-body h4 {
+        font-size: 15px;
+      }
+      .markdown-body h5,
+      .markdown-body h6 {
+        font-size: 14px;
+        color: var(--ink-2);
+      }
+
+      .markdown-body p,
+      .markdown-body ul,
+      .markdown-body ol,
+      .markdown-body blockquote,
+      .markdown-body table,
+      .markdown-body pre {
+        margin: 0 0 14px;
+      }
+
+      .markdown-body ul,
+      .markdown-body ol {
+        padding-left: 26px;
+      }
+
+      .markdown-body li + li {
+        margin-top: 4px;
+      }
+
+      .markdown-body li > p {
+        margin: 4px 0;
+      }
+
+      .markdown-body input[type="checkbox"] {
+        margin-right: 6px;
+        transform: translateY(1px);
+      }
+
+      .markdown-body blockquote {
+        border-left: 3px solid var(--brand);
+        padding: 4px 12px;
+        background: var(--brand-soft);
+        color: var(--ink-2);
+        border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+      }
+
+      .markdown-body blockquote > *:last-child {
+        margin-bottom: 0;
+      }
+
+      .markdown-body table {
+        width: 100%;
+        border-collapse: collapse;
+        overflow: auto;
+        display: block;
         font-size: 13px;
       }
 
-      .empty {
-        padding: 20px;
-        color: var(--muted);
-        line-height: 1.7;
+      .markdown-body th,
+      .markdown-body td {
+        border: 1px solid var(--border);
+        padding: 8px 10px;
+        text-align: left;
+        vertical-align: top;
       }
 
+      .markdown-body th {
+        background: var(--surface-2);
+        font-weight: 600;
+      }
+
+      .markdown-body tr:nth-child(2n) td {
+        background: #fafbfd;
+      }
+
+      .markdown-body code {
+        background: var(--surface-2);
+        padding: 1px 6px;
+        border-radius: 4px;
+        font-family: var(--mono);
+        font-size: 0.9em;
+        color: #b91c5c;
+      }
+
+      .markdown-body pre {
+        background: #0f172a;
+        color: #e2e8f0;
+        padding: 14px 16px;
+        border-radius: var(--radius-sm);
+        overflow: auto;
+        font-size: 12.5px;
+        line-height: 1.55;
+      }
+
+      .markdown-body pre code {
+        background: transparent;
+        color: inherit;
+        padding: 0;
+        border-radius: 0;
+        font-size: inherit;
+      }
+
+      .markdown-body a {
+        color: var(--brand-ink);
+        text-decoration: none;
+        border-bottom: 1px solid rgba(58, 73, 216, 0.3);
+      }
+
+      .markdown-body a:hover {
+        border-bottom-color: var(--brand-ink);
+      }
+
+      .markdown-body hr {
+        border: 0;
+        border-top: 1px solid var(--border);
+        margin: 24px 0;
+      }
+
+      .markdown-body img {
+        max-width: 100%;
+        border-radius: var(--radius-sm);
+      }
+
+      .markdown-body del {
+        color: var(--muted);
+      }
+
+      /* ---------- Empty state ---------- */
+      .empty {
+        padding: 32px 20px;
+        color: var(--muted);
+        text-align: center;
+        font-size: 13px;
+      }
+
+      .empty-icon {
+        display: inline-grid;
+        place-items: center;
+        width: 40px;
+        height: 40px;
+        margin: 0 auto 10px;
+        border-radius: 999px;
+        background: var(--surface-2);
+        color: var(--muted);
+      }
+
+      /* ---------- Toast ---------- */
       .toast {
         position: fixed;
-        right: 18px;
-        bottom: 18px;
-        max-width: min(420px, calc(100vw - 36px));
+        right: 20px;
+        bottom: 20px;
+        max-width: min(380px, calc(100vw - 40px));
         padding: 12px 14px;
-        border: 2px solid var(--black);
-        background: var(--black);
+        border: 1px solid var(--border);
+        background: var(--ink);
         color: #fff;
-        box-shadow: 6px 6px 0 #c9b36f;
-        transform: translateY(120%);
-        transition: transform 0.18s ease;
-        z-index: 20;
+        border-radius: var(--radius-sm);
+        box-shadow: var(--shadow-lg);
+        font-size: 13px;
+        font-weight: 500;
+        transform: translateY(160%);
+        transition: transform 0.22s cubic-bezier(0.2, 0.8, 0.2, 1);
+        z-index: 50;
       }
 
       .toast.show {
         transform: translateY(0);
       }
 
-      .failed {
-        color: var(--red);
-      }
-
-      .done {
-        color: var(--green);
+      /* ---------- Responsive ---------- */
+      @media (max-width: 1100px) {
+        .workspace {
+          grid-template-columns: 240px minmax(0, 1fr);
+        }
       }
 
       @media (max-width: 980px) {
-        .grid,
+        .shell {
+          height: auto;
+          min-height: 100vh;
+        }
+        .grid {
+          grid-template-columns: 1fr;
+        }
         .workspace {
           grid-template-columns: 1fr;
         }
-
-        .status-strip {
-          grid-template-columns: 1fr 1fr;
+        .pane-body {
+          max-height: 60vh;
         }
       }
 
       @media (max-width: 640px) {
         .shell {
-          width: min(100vw - 20px, 1440px);
-          padding-top: 14px;
+          padding: 14px;
         }
-
-        .topbar,
-        .actions {
-          align-items: stretch;
-          flex-direction: column;
+        .metric-row {
+          grid-template-columns: 1fr 1fr;
         }
-
-        .health {
-          text-align: left;
-        }
-
-        .form-grid,
-        .status-strip {
+        .form-grid {
           grid-template-columns: 1fr;
         }
       }
@@ -459,29 +902,38 @@
   </head>
   <body>
     <div class="shell">
-      <div class="topbar">
+      <!-- Top bar -->
+      <header class="topbar">
         <div class="brand">
-          <h1>DeepDoc Parse Console</h1>
-          <p>上传文档后实时查看解析任务、Markdown、纯文本和结构化 JSON。页面直接请求当前服务的 API。</p>
+          <div class="brand-mark">D</div>
+          <div class="brand-text">
+            <h1>DeepDoc Parse Console</h1>
+            <p>上传文档，实时查看任务进度、Markdown / 纯文本 / JSON 解析结果</p>
+          </div>
         </div>
-        <div class="health">
-          Service
+        <div id="healthPill" class="health-pill">
+          <span class="dot"></span>
           <span id="healthText">checking</span>
         </div>
-      </div>
+      </header>
 
+      <!-- Main grid -->
       <div class="grid">
-        <section class="panel">
-          <header>
-            <h2>Ingest</h2>
-            <span id="modeHint">auto</span>
-          </header>
-          <main>
+        <!-- Ingest -->
+        <section class="card">
+          <div class="card-header">
+            <h2 class="card-title">Ingest</h2>
+            <span id="modeHint" class="card-subtitle">auto</span>
+          </div>
+          <div class="card-body ingest-body">
             <input id="fileInput" type="file" hidden />
             <div id="drop" class="drop" tabindex="0">
               <div>
+                <div class="drop-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                </div>
                 <strong>选择或拖入文档</strong>
-                <small>PDF、DOCX、TXT、Markdown、CSV</small>
+                <small>PDF / DOCX / TXT / Markdown / CSV</small>
               </div>
             </div>
             <p id="fileName" class="file-name"></p>
@@ -503,9 +955,9 @@
                 <label for="fromPage">From Page</label>
                 <input id="fromPage" type="number" min="0" value="0" />
               </div>
-              <div class="field">
+              <div class="field wide">
                 <label for="toPage">To Page</label>
-                <input id="toPage" type="number" min="1" placeholder="空为默认上限" />
+                <input id="toPage" type="number" min="1" placeholder="留空使用默认上限" />
               </div>
             </div>
 
@@ -513,23 +965,24 @@
               <button id="uploadBtn" class="btn">开始解析</button>
               <button id="resetBtn" class="btn secondary">清空</button>
             </div>
-          </main>
+          </div>
         </section>
 
-        <section class="panel">
-          <header>
-            <h2>Run</h2>
-            <span id="activeStatus">idle</span>
-          </header>
-          <main>
-            <div class="status-strip">
+        <!-- Runner -->
+        <section class="card">
+          <div class="card-header">
+            <h2 class="card-title">Run</h2>
+            <span id="activeStatus" class="card-subtitle">idle</span>
+          </div>
+          <div class="card-body runner-body">
+            <div class="metric-row">
               <div class="metric">
                 <span>Task</span>
-                <strong id="taskId">-</strong>
+                <strong id="taskId">—</strong>
               </div>
               <div class="metric">
                 <span>Document</span>
-                <strong id="docId">-</strong>
+                <strong id="docId">—</strong>
               </div>
               <div class="metric">
                 <span>Status</span>
@@ -537,39 +990,63 @@
               </div>
               <div class="metric">
                 <span>Parser</span>
-                <strong id="parserUsed">-</strong>
+                <strong id="parserUsed">—</strong>
               </div>
             </div>
-            <div class="progress"><div id="bar" class="bar"></div></div>
+
+            <div class="progress-wrap">
+              <div class="progress-meta">
+                <span id="progressText">0%</span>
+                <span id="statusChip" class="status-chip">idle</span>
+              </div>
+              <div class="progress"><div id="bar" class="bar"></div></div>
+            </div>
 
             <div class="workspace">
-              <div class="timeline">
-                <div class="section-title">
+              <div class="pane">
+                <div class="pane-header">
                   <span>Timeline</span>
-                  <span id="progressText">0%</span>
+                  <span class="meta" id="eventCount">0</span>
                 </div>
-                <div id="events" class="events">
-                  <div class="empty">等待任务开始。</div>
+                <div class="pane-body">
+                  <div id="events" class="events">
+                    <div class="empty">
+                      <div class="empty-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                      </div>
+                      等待任务开始
+                    </div>
+                  </div>
                 </div>
               </div>
 
-              <div class="result">
-                <div class="section-title">
-                  <span>Parse Result</span>
-                  <span id="resultMeta">-</span>
-                </div>
+              <div class="pane">
                 <div class="result-toolbar">
-                  <button class="tab-btn active" data-view="markdown">Markdown</button>
-                  <button class="tab-btn" data-view="text">Text</button>
-                  <button class="tab-btn" data-view="json">JSON</button>
-                  <button class="tab-btn" data-view="tables">Tables</button>
+                  <div class="tabs" role="tablist">
+                    <button class="tab-btn active" data-view="markdown">Markdown</button>
+                    <button class="tab-btn" data-view="text">Text</button>
+                    <button class="tab-btn" data-view="json">JSON</button>
+                    <button class="tab-btn" data-view="tables">Tables</button>
+                  </div>
+                  <div class="result-actions">
+                    <span id="resultMeta" class="card-subtitle" style="margin-right: 4px"></span>
+                    <button id="copyResultBtn" class="mini-btn" type="button">复制</button>
+                    <button id="downloadResultBtn" class="mini-btn" type="button">下载</button>
+                  </div>
                 </div>
-                <div id="resultViewer" class="result-viewer">
-                  <div class="empty">任务完成后显示解析结果。</div>
+                <div class="pane-body">
+                  <div id="resultViewer" class="result-viewer">
+                    <div class="empty">
+                      <div class="empty-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                      </div>
+                      任务完成后显示解析结果
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
-          </main>
+          </div>
         </section>
       </div>
     </div>
@@ -577,6 +1054,9 @@
     <div id="toast" class="toast"></div>
 
     <script>
+      const LAST_SESSION_KEY = "deepdoc:last-session";
+      const memorySession = { value: null };
+
       const state = {
         file: null,
         timer: null,
@@ -590,13 +1070,14 @@
       function toast(message) {
         $("toast").textContent = message;
         $("toast").classList.add("show");
-        setTimeout(() => $("toast").classList.remove("show"), 2600);
+        clearTimeout(toast._t);
+        toast._t = setTimeout(() => $("toast").classList.remove("show"), 2600);
       }
 
       function setBusy(busy) {
         $("uploadBtn").disabled = busy;
         $("parserMode").disabled = busy;
-        $("uploadBtn").textContent = busy ? "解析中" : "开始解析";
+        $("uploadBtn").textContent = busy ? "解析中…" : "开始解析";
       }
 
       function setFile(file) {
@@ -604,23 +1085,46 @@
         $("fileName").textContent = file ? `${file.name} · ${(file.size / 1024 / 1024).toFixed(2)} MB` : "";
       }
 
+      function setStatusChip(status) {
+        const chip = $("statusChip");
+        chip.className = "status-chip";
+        chip.textContent = status || "idle";
+        if (status === "queued" || status === "parsing" || status === "done" || status === "failed") {
+          chip.classList.add(status);
+        }
+      }
+
       function resetView() {
         if (state.timer) clearInterval(state.timer);
         state.timer = null;
         state.task = null;
+        state.result = null;
         setBusy(false);
         setFile(null);
+        clearSavedSession();
         $("fileInput").value = "";
-        $("taskId").textContent = "-";
-        $("docId").textContent = "-";
+        $("taskId").textContent = "—";
+        $("docId").textContent = "—";
         $("statusText").textContent = "idle";
         $("activeStatus").textContent = "idle";
-        $("parserUsed").textContent = "-";
-        $("resultMeta").textContent = "-";
+        $("parserUsed").textContent = "—";
+        $("resultMeta").textContent = "";
         $("progressText").textContent = "0%";
+        $("eventCount").textContent = "0";
         $("bar").style.width = "0%";
-        $("events").innerHTML = '<div class="empty">等待任务开始。</div>';
-        $("resultViewer").innerHTML = '<div class="empty">任务完成后显示解析结果。</div>';
+        setStatusChip("idle");
+        $("events").innerHTML = emptyHtml("等待任务开始", "clock");
+        $("resultViewer").innerHTML = emptyHtml("任务完成后显示解析结果", "doc");
+      }
+
+      function emptyHtml(text, icon) {
+        const icons = {
+          clock:
+            '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>',
+          doc:
+            '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>',
+        };
+        return `<div class="empty"><div class="empty-icon" aria-hidden="true">${icons[icon] || ""}</div>${escapeHtml(text)}</div>`;
       }
 
       async function checkHealth() {
@@ -628,44 +1132,82 @@
           const response = await fetch("/api/v1/health");
           if (!response.ok) throw new Error(response.statusText);
           $("healthText").textContent = "online";
+          $("healthPill").className = "health-pill online";
         } catch (error) {
           $("healthText").textContent = "offline";
-          $("healthText").className = "failed";
+          $("healthPill").className = "health-pill offline";
         }
       }
 
       function renderTask(task) {
         state.task = task;
+        persistSession(task);
         const progress = Math.round((task.progress || 0) * 100);
         $("taskId").textContent = task.task_id;
         $("docId").textContent = task.doc_id;
         $("statusText").textContent = task.status;
         $("activeStatus").textContent = task.message || task.status;
-        $("statusText").className = task.status === "failed" ? "failed" : task.status === "done" ? "done" : "";
         $("bar").style.width = `${progress}%`;
         $("progressText").textContent = `${progress}%`;
+        setStatusChip(task.status);
 
         const events = task.events || [];
+        $("eventCount").textContent = String(events.length);
         $("events").innerHTML = events.length
           ? events
               .slice()
               .reverse()
-              .map(
-                (event) => `
-                  <div class="event">
-                    <strong>${event.status} · ${Math.round((event.progress || 0) * 100)}%</strong>
-                    <p>${new Date(event.at).toLocaleString()}<br>${event.message || ""}</p>
+              .map((event) => {
+                const pct = Math.round((event.progress || 0) * 100);
+                const cls = event.status === "failed" ? "failed" : event.status === "done" ? "done" : "";
+                return `
+                  <div class="event ${cls}">
+                    <strong>${escapeHtml(event.status)} · ${pct}%</strong>
+                    <span class="meta">${escapeHtml(new Date(event.at).toLocaleString())}</span>
+                    ${event.message ? `<p>${escapeHtml(event.message)}</p>` : ""}
                   </div>
-                `
-              )
+                `;
+              })
               .join("")
-          : '<div class="empty">暂无事件。</div>';
+          : emptyHtml("暂无事件", "clock");
 
         if (task.error) {
           $("events").insertAdjacentHTML(
             "afterbegin",
-            `<div class="event"><strong class="failed">error</strong><p>${escapeHtml(task.error)}</p></div>`
+            `<div class="event failed"><strong>error</strong><p>${escapeHtml(task.error)}</p></div>`
           );
+        }
+      }
+
+      function persistSession(task) {
+        if (!task || !task.task_id) return;
+        writeSavedSession({ taskId: task.task_id, docId: task.doc_id });
+      }
+
+      function readSavedSession() {
+        try {
+          return window.localStorage?.getItem(LAST_SESSION_KEY) || memorySession.value;
+        } catch (error) {
+          return memorySession.value;
+        }
+      }
+
+      function writeSavedSession(session) {
+        const value = JSON.stringify(session);
+        memorySession.value = value;
+        try {
+          window.localStorage?.setItem(LAST_SESSION_KEY, value);
+        } catch (error) {
+          /* embedded browser */
+        }
+      }
+
+      function clearSavedSession() {
+        memorySession.value = null;
+        try {
+          window.localStorage?.removeItem(LAST_SESSION_KEY);
+        } catch (error) {
+          /* embedded browser */
         }
       }
 
@@ -682,7 +1224,6 @@
           await loadResult(task.doc_id);
           toast("解析完成");
         }
-
         if (task.status === "failed") {
           clearInterval(state.timer);
           state.timer = null;
@@ -696,7 +1237,7 @@
         if (!response.ok) throw new Error(`结果查询失败：${response.status}`);
         const result = await response.json();
         state.result = result;
-        $("parserUsed").textContent = result.parser_used || "-";
+        $("parserUsed").textContent = result.parser_used || "—";
         $("resultMeta").textContent = `${(result.sections || []).length} sections · ${(result.tables || []).length} tables`;
         renderResult();
       }
@@ -704,12 +1245,14 @@
       function renderResult() {
         const result = state.result;
         if (!result) {
-          $("resultViewer").innerHTML = '<div class="empty">任务完成后显示解析结果。</div>';
+          $("resultViewer").innerHTML = emptyHtml("任务完成后显示解析结果", "doc");
           return;
         }
 
         if (state.view === "markdown") {
-          $("resultViewer").innerHTML = `<pre>${escapeHtml(result.markdown || "")}</pre>`;
+          const html = renderMarkdown(result.markdown || "");
+          $("resultViewer").innerHTML = `<div class="markdown-body">${html}</div>`;
+          highlightCode($("resultViewer"));
           return;
         }
 
@@ -735,11 +1278,11 @@
                 `
               )
               .join("")
-          : '<div class="empty">没有解析到表格。</div>';
+          : emptyHtml("没有解析到表格", "doc");
       }
 
       function escapeHtml(value) {
-        return String(value)
+        return String(value ?? "")
           .replaceAll("&", "&amp;")
           .replaceAll("<", "&lt;")
           .replaceAll(">", "&gt;")
@@ -747,12 +1290,353 @@
           .replaceAll("'", "&#039;");
       }
 
+      // -------- Markdown rendering (marked + DOMPurify, with safe fallback) --------
+      let markedConfigured = false;
+
+      function configureMarked() {
+        if (markedConfigured || typeof window.marked === "undefined") return;
+        try {
+          window.marked.setOptions({
+            gfm: true,
+            breaks: false,
+            headerIds: true,
+            mangle: false,
+            highlight(code, lang) {
+              if (window.hljs) {
+                try {
+                  if (lang && window.hljs.getLanguage(lang)) {
+                    return window.hljs.highlight(code, { language: lang, ignoreIllegals: true }).value;
+                  }
+                  return window.hljs.highlightAuto(code).value;
+                } catch (error) {
+                  return null;
+                }
+              }
+              return null;
+            },
+          });
+          markedConfigured = true;
+        } catch (error) {
+          // ignore — fallback parser still works
+        }
+      }
+
+      function renderMarkdown(value) {
+        const src = String(value || "");
+        if (!src.trim()) {
+          return '<div class="empty">Markdown 结果为空</div>';
+        }
+
+        if (typeof window.marked !== "undefined") {
+          configureMarked();
+          try {
+            const raw = window.marked.parse(src);
+            if (typeof window.DOMPurify !== "undefined") {
+              return window.DOMPurify.sanitize(raw, { USE_PROFILES: { html: true } });
+            }
+            return raw;
+          } catch (error) {
+            // fall through to mini parser
+          }
+        }
+        return fallbackRenderMarkdown(src);
+      }
+
+      function highlightCode(scope) {
+        if (!window.hljs) return;
+        scope.querySelectorAll("pre code").forEach((block) => {
+          if (!block.dataset.highlighted) {
+            try {
+              window.hljs.highlightElement(block);
+              block.dataset.highlighted = "yes";
+            } catch (error) {
+              /* noop */
+            }
+          }
+        });
+      }
+
+      // -------- Minimal fallback parser (only used if CDN blocked) --------
+      function fallbackRenderMarkdown(value) {
+        const lines = value.replace(/\r\n?/g, "\n").split("\n");
+        const html = [];
+        let paragraph = [];
+        let listType = null;
+        let inCode = false;
+        let codeLang = "";
+        let codeLines = [];
+
+        const flushParagraph = () => {
+          if (!paragraph.length) return;
+          html.push(`<p>${paragraph.map((line) => renderInline(line)).join("<br>")}</p>`);
+          paragraph = [];
+        };
+        const closeList = () => {
+          if (!listType) return;
+          html.push(`</${listType}>`);
+          listType = null;
+        };
+        const openList = (type) => {
+          if (listType === type) return;
+          closeList();
+          flushParagraph();
+          listType = type;
+          html.push(`<${type}>`);
+        };
+        const flushCode = () => {
+          const safeLang = codeLang.replace(/[^\w-]/g, "");
+          const className = safeLang ? ` class="language-${safeLang}"` : "";
+          html.push(`<pre><code${className}>${escapeHtml(codeLines.join("\n"))}</code></pre>`);
+          inCode = false;
+          codeLang = "";
+          codeLines = [];
+        };
+
+        for (let index = 0; index < lines.length; index += 1) {
+          const line = lines[index];
+          const trimmed = line.trim();
+
+          if (trimmed.startsWith("```")) {
+            if (inCode) {
+              flushCode();
+            } else {
+              flushParagraph();
+              closeList();
+              inCode = true;
+              codeLang = trimmed.slice(3).trim().split(/\s+/)[0] || "";
+            }
+            continue;
+          }
+          if (inCode) {
+            codeLines.push(line);
+            continue;
+          }
+          if (!trimmed) {
+            flushParagraph();
+            closeList();
+            continue;
+          }
+          if (isMarkdownTable(lines, index)) {
+            flushParagraph();
+            closeList();
+            const table = collectMarkdownTable(lines, index);
+            html.push(renderMarkdownTable(table.rows));
+            index = table.nextIndex - 1;
+            continue;
+          }
+          const heading = trimmed.match(/^(#{1,6})\s+(.+)$/);
+          if (heading) {
+            flushParagraph();
+            closeList();
+            const level = heading[1].length;
+            html.push(`<h${level}>${renderInline(heading[2])}</h${level}>`);
+            continue;
+          }
+          const quote = trimmed.match(/^>\s?(.+)$/);
+          if (quote) {
+            flushParagraph();
+            closeList();
+            html.push(`<blockquote>${renderInline(quote[1])}</blockquote>`);
+            continue;
+          }
+          const unordered = trimmed.match(/^[-*+]\s+(.+)$/);
+          if (unordered) {
+            openList("ul");
+            html.push(`<li>${renderInline(unordered[1])}</li>`);
+            continue;
+          }
+          const ordered = trimmed.match(/^\d+\.\s+(.+)$/);
+          if (ordered) {
+            openList("ol");
+            html.push(`<li>${renderInline(ordered[1])}</li>`);
+            continue;
+          }
+          closeList();
+          paragraph.push(trimmed);
+        }
+
+        if (inCode) flushCode();
+        flushParagraph();
+        closeList();
+        return html.join("") || '<div class="empty">Markdown 结果为空</div>';
+      }
+
+      function renderInline(value) {
+        const codeTokens = [];
+        let output = escapeHtml(value).replace(/`([^`]+)`/g, (_, code) => {
+          codeTokens.push(`<code>${code}</code>`);
+          return `%%CODE_TOKEN_${codeTokens.length - 1}%%`;
+        });
+        output = output
+          .replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>')
+          .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+          .replace(/__([^_]+)__/g, "<strong>$1</strong>")
+          .replace(/~~([^~]+)~~/g, "<del>$1</del>")
+          .replace(/\*([^*]+)\*/g, "<em>$1</em>")
+          .replace(/_([^_]+)_/g, "<em>$1</em>");
+        return output.replace(/%%CODE_TOKEN_(\d+)%%/g, (_, index) => codeTokens[Number(index)]);
+      }
+
+      function isMarkdownTable(lines, index) {
+        const current = (lines[index] || "").trim();
+        const next = (lines[index + 1] || "").trim();
+        return current.includes("|") && /^\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)+\|?$/.test(next);
+      }
+
+      function collectMarkdownTable(lines, startIndex) {
+        const rows = [lines[startIndex]];
+        let index = startIndex + 2;
+        while (index < lines.length && lines[index].trim().includes("|")) {
+          rows.push(lines[index]);
+          index += 1;
+        }
+        return { rows, nextIndex: index };
+      }
+
+      function renderMarkdownTable(rows) {
+        const [headerLine, ...bodyLines] = rows;
+        const header = parseMarkdownTableRow(headerLine);
+        const body = bodyLines.map(parseMarkdownTableRow);
+        return `
+          <table>
+            <thead><tr>${header.map((cell) => `<th>${renderInline(cell)}</th>`).join("")}</tr></thead>
+            <tbody>${body.map((row) => `<tr>${row.map((cell) => `<td>${renderInline(cell)}</td>`).join("")}</tr>`).join("")}</tbody>
+          </table>
+        `;
+      }
+
+      function parseMarkdownTableRow(line) {
+        return line
+          .trim()
+          .replace(/^\|/, "")
+          .replace(/\|$/, "")
+          .split("|")
+          .map((cell) => cell.trim());
+      }
+
+      // -------- Copy / download / session restore / upload --------
+      function getCurrentResultPayload() {
+        const result = state.result;
+        if (!result) return null;
+        if (state.view === "markdown") {
+          return { content: result.markdown || "", extension: "md", mime: "text/markdown;charset=utf-8" };
+        }
+        if (state.view === "text") {
+          return { content: result.text || "", extension: "txt", mime: "text/plain;charset=utf-8" };
+        }
+        if (state.view === "tables") {
+          return {
+            content: JSON.stringify(result.tables || [], null, 2),
+            extension: "tables.json",
+            mime: "application/json;charset=utf-8",
+          };
+        }
+        return {
+          content: JSON.stringify(result, null, 2),
+          extension: "json",
+          mime: "application/json;charset=utf-8",
+        };
+      }
+
+      async function copyCurrentResult() {
+        const payload = getCurrentResultPayload();
+        if (!payload) {
+          toast("暂无可复制的结果");
+          return;
+        }
+        try {
+          if (navigator.clipboard?.writeText) {
+            await navigator.clipboard.writeText(payload.content);
+          } else {
+            const textarea = document.createElement("textarea");
+            textarea.value = payload.content;
+            textarea.setAttribute("readonly", "");
+            textarea.style.position = "fixed";
+            textarea.style.left = "-9999px";
+            document.body.appendChild(textarea);
+            textarea.select();
+            document.execCommand("copy");
+            textarea.remove();
+          }
+          toast("已复制当前结果");
+        } catch (error) {
+          toast(`复制失败：${error.message}`);
+        }
+      }
+
+      function downloadCurrentResult() {
+        const payload = getCurrentResultPayload();
+        if (!payload) {
+          toast("暂无可下载的结果");
+          return;
+        }
+        const docId = state.result?.doc_id || "document";
+        const filename = `${docId}.${payload.extension}`;
+        const anchor = document.createElement("a");
+        try {
+          const blob = new Blob([payload.content], { type: payload.mime });
+          anchor.href = URL.createObjectURL(blob);
+          anchor.download = filename;
+          document.body.appendChild(anchor);
+          anchor.click();
+          anchor.remove();
+          URL.revokeObjectURL(anchor.href);
+          toast("已开始下载");
+        } catch (error) {
+          anchor.href = `data:${payload.mime},${encodeURIComponent(payload.content)}`;
+          anchor.download = filename;
+          document.body.appendChild(anchor);
+          anchor.click();
+          anchor.remove();
+          toast("已开始下载");
+        }
+      }
+
+      async function restoreSession() {
+        const saved = readSavedSession();
+        if (!saved) return;
+        try {
+          const session = JSON.parse(saved);
+          if (!session.taskId) return;
+          const response = await fetch(`/api/v1/tasks/${session.taskId}`);
+          if (!response.ok) {
+            clearSavedSession();
+            return;
+          }
+          const task = await response.json();
+          renderTask(task);
+          if (task.status === "done") {
+            setBusy(false);
+            await loadResult(task.doc_id);
+            toast("已恢复上次解析结果");
+            return;
+          }
+          if (task.status === "queued" || task.status === "parsing") {
+            setBusy(true);
+            await pollTask(task.task_id);
+            if (!state.timer) {
+              state.timer = setInterval(
+                () => pollTask(task.task_id).catch((error) => toast(error.message)),
+                1500
+              );
+            }
+            return;
+          }
+          if (task.status === "failed") {
+            setBusy(false);
+            toast("已恢复上次失败任务");
+          }
+        } catch (error) {
+          clearSavedSession();
+          toast(`恢复上次任务失败：${error.message}`);
+        }
+      }
+
       async function upload() {
         if (!state.file) {
           toast("请先选择文档");
           return;
         }
-
         const form = new FormData();
         form.append("file", state.file);
         form.append("kb_id", $("kbId").value || "demo");
@@ -762,31 +1646,34 @@
 
         setBusy(true);
         state.result = null;
-        $("resultViewer").innerHTML = '<div class="empty">等待解析结果。</div>';
-        $("events").innerHTML = '<div class="empty">任务已提交。</div>';
+        $("resultViewer").innerHTML = emptyHtml("等待解析结果", "doc");
+        $("events").innerHTML = emptyHtml("任务已提交", "clock");
 
         try {
-          const response = await fetch("/api/v1/documents", {
-            method: "POST",
-            body: form,
-          });
+          const response = await fetch("/api/v1/documents", { method: "POST", body: form });
           if (!response.ok) {
             const text = await response.text();
             throw new Error(text || `上传失败：${response.status}`);
           }
           const payload = await response.json();
+          writeSavedSession({ taskId: payload.task_id, docId: payload.doc_id });
           $("taskId").textContent = payload.task_id;
           $("docId").textContent = payload.doc_id;
           $("statusText").textContent = payload.status;
+          setStatusChip(payload.status);
           toast("任务已创建");
           await pollTask(payload.task_id);
-          state.timer = setInterval(() => pollTask(payload.task_id).catch((error) => toast(error.message)), 1500);
+          state.timer = setInterval(
+            () => pollTask(payload.task_id).catch((error) => toast(error.message)),
+            1500
+          );
         } catch (error) {
           setBusy(false);
           toast(error.message);
         }
       }
 
+      // ------ Wire up ------
       $("drop").addEventListener("click", () => $("fileInput").click());
       $("drop").addEventListener("keydown", (event) => {
         if (event.key === "Enter" || event.key === " ") $("fileInput").click();
@@ -804,6 +1691,8 @@
       $("fileInput").addEventListener("change", (event) => setFile(event.target.files[0]));
       $("uploadBtn").addEventListener("click", upload);
       $("resetBtn").addEventListener("click", resetView);
+      $("copyResultBtn").addEventListener("click", copyCurrentResult);
+      $("downloadResultBtn").addEventListener("click", downloadCurrentResult);
       $("parserMode").addEventListener("change", () => ($("modeHint").textContent = $("parserMode").value));
       document.querySelectorAll(".tab-btn").forEach((button) => {
         button.addEventListener("click", () => {
@@ -814,7 +1703,16 @@
         });
       });
 
+      // Defer-loaded scripts (marked/DOMPurify/hljs) are ready before this runs since this
+      // script tag itself is at the end of body.
+      window.addEventListener("load", () => {
+        configureMarked();
+        // If result already loaded (session restore finished first), re-render markdown view
+        if (state.result && state.view === "markdown") renderResult();
+      });
+
       checkHealth();
+      restoreSession();
     </script>
   </body>
 </html>

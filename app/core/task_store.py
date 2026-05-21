@@ -5,6 +5,7 @@ from threading import RLock
 import orjson
 
 from app.core.config import get_settings
+from app.core.json_io import write_json_atomic
 from app.models.schemas import TaskEvent, TaskRecord, TaskStatus
 
 
@@ -23,7 +24,7 @@ class TaskStore:
     def save(self, record: TaskRecord) -> TaskRecord:
         with self._lock:
             payload = record.model_dump(mode="json")
-            self._path(record.task_id).write_bytes(orjson.dumps(payload, option=orjson.OPT_INDENT_2))
+            write_json_atomic(self._path(record.task_id), payload)
         return record
 
     def get(self, task_id: str) -> TaskRecord | None:
