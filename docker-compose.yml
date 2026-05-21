@@ -1,0 +1,12 @@
+services:
+  deepdoc-rag-service:
+    build: .
+    container_name: deepdoc-rag-service
+    env_file:
+      - .env
+    ports:
+      - "8010:8010"
+    volumes:
+      - ./app/storage:/app/app/storage
+      - ./vendor/ragflow/rag/res/deepdoc:/app/vendor/ragflow/rag/res/deepdoc
+    restart: unless-stopped

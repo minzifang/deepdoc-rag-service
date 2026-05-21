@@ -1,0 +1,59 @@
+[project]
+name = "deepdoc-rag-service"
+version = "0.1.0"
+description = "Standalone document understanding service built around RAGFlow DeepDoc."
+readme = "README.md"
+requires-python = ">=3.13,<3.15"
+dependencies = [
+    "fastapi>=0.115.0,<1.0.0",
+    "uvicorn[standard]>=0.30.0,<1.0.0",
+    "python-multipart>=0.0.9,<1.0.0",
+    "pydantic>=2.8.0,<3.0.0",
+    "pydantic-settings>=2.4.0,<3.0.0",
+    "httpx>=0.27.0,<1.0.0",
+    "orjson>=3.10.0,<4.0.0",
+    "pypdf>=6.10.2",
+    "python-docx>=1.1.2,<2.0.0",
+    "pandas>=2.2.0,<3.0.0",
+    "openpyxl>=3.1.0,<4.0.0",
+    "python-pptx>=1.0.2,<2.0.0",
+    "jinja2>=3.1.0,<4.0.0",
+    "json-repair>=0.35.0",
+    "markdown>=3.6,<4.0",
+    "markdownify>=1.2.0,<2.0.0",
+    "chardet>=5.2.0,<6.0.0",
+    "pillow>=12.2.0,<13.0.0",
+    "cn2an==0.5.22",
+    "word2number==1.1",
+    "roman-numbers==1.0.2",
+]
+
+[project.optional-dependencies]
+deepdoc = [
+    "beartype>=0.20.0,<1.0.0",
+    "numpy>=1.26.0",
+    "pdfplumber==0.10.4",
+    "xgboost>=2.0.0,<3.1.0",
+    "huggingface-hub>=0.25.0",
+    "scikit-learn>=1.5.0",
+    "onnxruntime==1.23.2",
+    "opencv-python-headless==4.10.0.84",
+    "pyclipper>=1.4.0,<2.0.0",
+    "shapely>=2.0.5,<3.0.0",
+    "six>=1.16.0",
+    "tiktoken>=0.7.0",
+]
+dev = [
+    "pytest>=8.0.0,<9.0.0",
+    "ruff>=0.8.0,<1.0.0",
+]
+
+[tool.uv]
+package = false
+
+[tool.ruff]
+line-length = 120
+target-version = "py313"
+
+[tool.pytest.ini_options]
+pythonpath = ["."]

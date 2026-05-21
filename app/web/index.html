@@ -1,0 +1,820 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>DeepDoc Parse Console</title>
+    <style>
+      :root {
+        --ink: #1d252c;
+        --muted: #65707a;
+        --line: #d8dee3;
+        --paper: #f6f3eb;
+        --panel: #fffdf7;
+        --green: #177e68;
+        --teal: #155d65;
+        --amber: #b2641b;
+        --red: #b33d2e;
+        --black: #101418;
+        --shadow: 0 18px 48px rgba(29, 37, 44, 0.12);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        color: var(--ink);
+        font-family: "Avenir Next", "PingFang SC", "Hiragino Sans GB", sans-serif;
+        background:
+          linear-gradient(90deg, rgba(16, 20, 24, 0.035) 1px, transparent 1px),
+          linear-gradient(rgba(16, 20, 24, 0.035) 1px, transparent 1px),
+          var(--paper);
+        background-size: 28px 28px;
+      }
+
+      button,
+      input,
+      select {
+        font: inherit;
+      }
+
+      .shell {
+        width: min(1440px, calc(100vw - 32px));
+        margin: 0 auto;
+        padding: 26px 0 34px;
+      }
+
+      .topbar {
+        display: flex;
+        align-items: end;
+        justify-content: space-between;
+        gap: 18px;
+        padding-bottom: 18px;
+        border-bottom: 2px solid var(--black);
+      }
+
+      .brand {
+        display: grid;
+        gap: 8px;
+      }
+
+      .brand h1 {
+        margin: 0;
+        font-size: clamp(28px, 4vw, 58px);
+        line-height: 0.95;
+        letter-spacing: 0;
+        font-weight: 900;
+      }
+
+      .brand p {
+        margin: 0;
+        max-width: 720px;
+        color: var(--muted);
+        font-size: 15px;
+      }
+
+      .health {
+        min-width: 170px;
+        padding: 10px 14px;
+        border: 2px solid var(--black);
+        background: var(--panel);
+        box-shadow: 5px 5px 0 var(--black);
+        text-align: right;
+        font-weight: 800;
+      }
+
+      .health span {
+        display: block;
+        color: var(--green);
+        font-size: 13px;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: minmax(330px, 430px) 1fr;
+        gap: 18px;
+        padding-top: 18px;
+      }
+
+      .panel {
+        border: 2px solid var(--black);
+        background: var(--panel);
+        box-shadow: var(--shadow);
+      }
+
+      .panel header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        min-height: 50px;
+        padding: 12px 14px;
+        border-bottom: 2px solid var(--black);
+        background: #efe7d2;
+      }
+
+      .panel h2 {
+        margin: 0;
+        font-size: 15px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .panel main {
+        padding: 14px;
+      }
+
+      .drop {
+        display: grid;
+        place-items: center;
+        min-height: 190px;
+        padding: 22px;
+        border: 2px dashed #52606b;
+        background: #f9f7ef;
+        cursor: pointer;
+        transition: transform 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+      }
+
+      .drop:hover,
+      .drop.drag {
+        transform: translateY(-2px);
+        border-color: var(--green);
+        background: #edf5ef;
+      }
+
+      .drop strong {
+        display: block;
+        margin-bottom: 8px;
+        font-size: 22px;
+      }
+
+      .drop small {
+        color: var(--muted);
+      }
+
+      .file-name {
+        margin: 12px 0 0;
+        min-height: 24px;
+        color: var(--teal);
+        font-weight: 800;
+        word-break: break-all;
+      }
+
+      .form-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+        margin-top: 16px;
+      }
+
+      .field {
+        display: grid;
+        gap: 7px;
+      }
+
+      .field.wide {
+        grid-column: 1 / -1;
+      }
+
+      label {
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 800;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+      }
+
+      input,
+      select {
+        width: 100%;
+        height: 42px;
+        border: 2px solid var(--black);
+        border-radius: 0;
+        background: #fff;
+        color: var(--ink);
+        padding: 0 10px;
+        outline: none;
+      }
+
+      input:focus,
+      select:focus {
+        border-color: var(--green);
+        box-shadow: 0 0 0 3px rgba(23, 126, 104, 0.16);
+      }
+
+      .actions {
+        display: flex;
+        gap: 10px;
+        margin-top: 16px;
+      }
+
+      .btn {
+        height: 44px;
+        border: 2px solid var(--black);
+        background: var(--black);
+        color: #fff;
+        padding: 0 16px;
+        cursor: pointer;
+        font-weight: 900;
+        box-shadow: 4px 4px 0 #c9b36f;
+        transition: transform 0.12s ease, box-shadow 0.12s ease;
+      }
+
+      .btn.secondary {
+        background: #fff;
+        color: var(--black);
+        box-shadow: none;
+      }
+
+      .btn:disabled {
+        cursor: not-allowed;
+        opacity: 0.55;
+      }
+
+      .btn:not(:disabled):active {
+        transform: translate(3px, 3px);
+        box-shadow: 1px 1px 0 #c9b36f;
+      }
+
+      .status-strip {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(120px, 1fr));
+        gap: 12px;
+        margin-bottom: 14px;
+      }
+
+      .metric {
+        min-height: 82px;
+        padding: 12px;
+        border: 2px solid var(--black);
+        background: #fff;
+      }
+
+      .metric span {
+        display: block;
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 800;
+        text-transform: uppercase;
+      }
+
+      .metric strong {
+        display: block;
+        margin-top: 8px;
+        font-size: 18px;
+        word-break: break-all;
+      }
+
+      .progress {
+        position: relative;
+        height: 18px;
+        overflow: hidden;
+        border: 2px solid var(--black);
+        background: #fff;
+      }
+
+      .bar {
+        width: 0%;
+        height: 100%;
+        background: repeating-linear-gradient(135deg, var(--green) 0 10px, #39a58f 10px 20px);
+        transition: width 0.25s ease;
+      }
+
+      .workspace {
+        display: grid;
+        grid-template-columns: 320px minmax(0, 1fr);
+        gap: 14px;
+        margin-top: 14px;
+      }
+
+      .timeline,
+      .result {
+        min-height: 460px;
+        border: 2px solid var(--black);
+        background: #fff;
+      }
+
+      .section-title {
+        display: flex;
+        justify-content: space-between;
+        gap: 10px;
+        padding: 10px 12px;
+        border-bottom: 2px solid var(--black);
+        background: #edf1ef;
+        font-weight: 900;
+      }
+
+      .events {
+        max-height: 410px;
+        overflow: auto;
+        padding: 10px;
+      }
+
+      .event {
+        display: grid;
+        gap: 4px;
+        padding: 10px 0;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .event strong {
+        color: var(--teal);
+        font-size: 13px;
+      }
+
+      .event p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.45;
+      }
+
+      .result-toolbar {
+        display: flex;
+        gap: 8px;
+        padding: 10px;
+        border-bottom: 1px solid var(--line);
+        background: #fbfaf4;
+      }
+
+      .tab-btn {
+        border: 2px solid var(--black);
+        background: #fff;
+        color: var(--black);
+        padding: 7px 10px;
+        cursor: pointer;
+        font-size: 12px;
+        font-weight: 900;
+      }
+
+      .tab-btn.active {
+        background: var(--black);
+        color: #fff;
+      }
+
+      .result-viewer {
+        max-height: 410px;
+        overflow: auto;
+        padding: 12px;
+      }
+
+      .result-card {
+        padding: 12px;
+        border: 2px solid var(--line);
+        margin-bottom: 10px;
+        background: #fffdf8;
+      }
+
+      .result-card strong {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        margin-bottom: 8px;
+        color: var(--amber);
+        font-size: 12px;
+        font-weight: 900;
+      }
+
+      .result-viewer pre,
+      .result-card pre {
+        margin: 0;
+        white-space: pre-wrap;
+        word-break: break-word;
+        line-height: 1.6;
+        color: #26333b;
+        font-family: "SFMono-Regular", "Cascadia Code", monospace;
+        font-size: 13px;
+      }
+
+      .empty {
+        padding: 20px;
+        color: var(--muted);
+        line-height: 1.7;
+      }
+
+      .toast {
+        position: fixed;
+        right: 18px;
+        bottom: 18px;
+        max-width: min(420px, calc(100vw - 36px));
+        padding: 12px 14px;
+        border: 2px solid var(--black);
+        background: var(--black);
+        color: #fff;
+        box-shadow: 6px 6px 0 #c9b36f;
+        transform: translateY(120%);
+        transition: transform 0.18s ease;
+        z-index: 20;
+      }
+
+      .toast.show {
+        transform: translateY(0);
+      }
+
+      .failed {
+        color: var(--red);
+      }
+
+      .done {
+        color: var(--green);
+      }
+
+      @media (max-width: 980px) {
+        .grid,
+        .workspace {
+          grid-template-columns: 1fr;
+        }
+
+        .status-strip {
+          grid-template-columns: 1fr 1fr;
+        }
+      }
+
+      @media (max-width: 640px) {
+        .shell {
+          width: min(100vw - 20px, 1440px);
+          padding-top: 14px;
+        }
+
+        .topbar,
+        .actions {
+          align-items: stretch;
+          flex-direction: column;
+        }
+
+        .health {
+          text-align: left;
+        }
+
+        .form-grid,
+        .status-strip {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="shell">
+      <div class="topbar">
+        <div class="brand">
+          <h1>DeepDoc Parse Console</h1>
+          <p>上传文档后实时查看解析任务、Markdown、纯文本和结构化 JSON。页面直接请求当前服务的 API。</p>
+        </div>
+        <div class="health">
+          Service
+          <span id="healthText">checking</span>
+        </div>
+      </div>
+
+      <div class="grid">
+        <section class="panel">
+          <header>
+            <h2>Ingest</h2>
+            <span id="modeHint">auto</span>
+          </header>
+          <main>
+            <input id="fileInput" type="file" hidden />
+            <div id="drop" class="drop" tabindex="0">
+              <div>
+                <strong>选择或拖入文档</strong>
+                <small>PDF、DOCX、TXT、Markdown、CSV</small>
+              </div>
+            </div>
+            <p id="fileName" class="file-name"></p>
+
+            <div class="form-grid">
+              <div class="field wide">
+                <label for="kbId">KB ID</label>
+                <input id="kbId" value="demo" />
+              </div>
+              <div class="field">
+                <label for="parserMode">Parser</label>
+                <select id="parserMode">
+                  <option value="auto">auto</option>
+                  <option value="deepdoc">deepdoc</option>
+                  <option value="plain">plain</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="fromPage">From Page</label>
+                <input id="fromPage" type="number" min="0" value="0" />
+              </div>
+              <div class="field">
+                <label for="toPage">To Page</label>
+                <input id="toPage" type="number" min="1" placeholder="空为默认上限" />
+              </div>
+            </div>
+
+            <div class="actions">
+              <button id="uploadBtn" class="btn">开始解析</button>
+              <button id="resetBtn" class="btn secondary">清空</button>
+            </div>
+          </main>
+        </section>
+
+        <section class="panel">
+          <header>
+            <h2>Run</h2>
+            <span id="activeStatus">idle</span>
+          </header>
+          <main>
+            <div class="status-strip">
+              <div class="metric">
+                <span>Task</span>
+                <strong id="taskId">-</strong>
+              </div>
+              <div class="metric">
+                <span>Document</span>
+                <strong id="docId">-</strong>
+              </div>
+              <div class="metric">
+                <span>Status</span>
+                <strong id="statusText">idle</strong>
+              </div>
+              <div class="metric">
+                <span>Parser</span>
+                <strong id="parserUsed">-</strong>
+              </div>
+            </div>
+            <div class="progress"><div id="bar" class="bar"></div></div>
+
+            <div class="workspace">
+              <div class="timeline">
+                <div class="section-title">
+                  <span>Timeline</span>
+                  <span id="progressText">0%</span>
+                </div>
+                <div id="events" class="events">
+                  <div class="empty">等待任务开始。</div>
+                </div>
+              </div>
+
+              <div class="result">
+                <div class="section-title">
+                  <span>Parse Result</span>
+                  <span id="resultMeta">-</span>
+                </div>
+                <div class="result-toolbar">
+                  <button class="tab-btn active" data-view="markdown">Markdown</button>
+                  <button class="tab-btn" data-view="text">Text</button>
+                  <button class="tab-btn" data-view="json">JSON</button>
+                  <button class="tab-btn" data-view="tables">Tables</button>
+                </div>
+                <div id="resultViewer" class="result-viewer">
+                  <div class="empty">任务完成后显示解析结果。</div>
+                </div>
+              </div>
+            </div>
+          </main>
+        </section>
+      </div>
+    </div>
+
+    <div id="toast" class="toast"></div>
+
+    <script>
+      const state = {
+        file: null,
+        timer: null,
+        task: null,
+        result: null,
+        view: "markdown",
+      };
+
+      const $ = (id) => document.getElementById(id);
+
+      function toast(message) {
+        $("toast").textContent = message;
+        $("toast").classList.add("show");
+        setTimeout(() => $("toast").classList.remove("show"), 2600);
+      }
+
+      function setBusy(busy) {
+        $("uploadBtn").disabled = busy;
+        $("parserMode").disabled = busy;
+        $("uploadBtn").textContent = busy ? "解析中" : "开始解析";
+      }
+
+      function setFile(file) {
+        state.file = file;
+        $("fileName").textContent = file ? `${file.name} · ${(file.size / 1024 / 1024).toFixed(2)} MB` : "";
+      }
+
+      function resetView() {
+        if (state.timer) clearInterval(state.timer);
+        state.timer = null;
+        state.task = null;
+        setBusy(false);
+        setFile(null);
+        $("fileInput").value = "";
+        $("taskId").textContent = "-";
+        $("docId").textContent = "-";
+        $("statusText").textContent = "idle";
+        $("activeStatus").textContent = "idle";
+        $("parserUsed").textContent = "-";
+        $("resultMeta").textContent = "-";
+        $("progressText").textContent = "0%";
+        $("bar").style.width = "0%";
+        $("events").innerHTML = '<div class="empty">等待任务开始。</div>';
+        $("resultViewer").innerHTML = '<div class="empty">任务完成后显示解析结果。</div>';
+      }
+
+      async function checkHealth() {
+        try {
+          const response = await fetch("/api/v1/health");
+          if (!response.ok) throw new Error(response.statusText);
+          $("healthText").textContent = "online";
+        } catch (error) {
+          $("healthText").textContent = "offline";
+          $("healthText").className = "failed";
+        }
+      }
+
+      function renderTask(task) {
+        state.task = task;
+        const progress = Math.round((task.progress || 0) * 100);
+        $("taskId").textContent = task.task_id;
+        $("docId").textContent = task.doc_id;
+        $("statusText").textContent = task.status;
+        $("activeStatus").textContent = task.message || task.status;
+        $("statusText").className = task.status === "failed" ? "failed" : task.status === "done" ? "done" : "";
+        $("bar").style.width = `${progress}%`;
+        $("progressText").textContent = `${progress}%`;
+
+        const events = task.events || [];
+        $("events").innerHTML = events.length
+          ? events
+              .slice()
+              .reverse()
+              .map(
+                (event) => `
+                  <div class="event">
+                    <strong>${event.status} · ${Math.round((event.progress || 0) * 100)}%</strong>
+                    <p>${new Date(event.at).toLocaleString()}<br>${event.message || ""}</p>
+                  </div>
+                `
+              )
+              .join("")
+          : '<div class="empty">暂无事件。</div>';
+
+        if (task.error) {
+          $("events").insertAdjacentHTML(
+            "afterbegin",
+            `<div class="event"><strong class="failed">error</strong><p>${escapeHtml(task.error)}</p></div>`
+          );
+        }
+      }
+
+      async function pollTask(taskId) {
+        const response = await fetch(`/api/v1/tasks/${taskId}`);
+        if (!response.ok) throw new Error(`任务查询失败：${response.status}`);
+        const task = await response.json();
+        renderTask(task);
+
+        if (task.status === "done") {
+          clearInterval(state.timer);
+          state.timer = null;
+          setBusy(false);
+          await loadResult(task.doc_id);
+          toast("解析完成");
+        }
+
+        if (task.status === "failed") {
+          clearInterval(state.timer);
+          state.timer = null;
+          setBusy(false);
+          toast("解析失败");
+        }
+      }
+
+      async function loadResult(docId) {
+        const response = await fetch(`/api/v1/documents/${docId}/result`);
+        if (!response.ok) throw new Error(`结果查询失败：${response.status}`);
+        const result = await response.json();
+        state.result = result;
+        $("parserUsed").textContent = result.parser_used || "-";
+        $("resultMeta").textContent = `${(result.sections || []).length} sections · ${(result.tables || []).length} tables`;
+        renderResult();
+      }
+
+      function renderResult() {
+        const result = state.result;
+        if (!result) {
+          $("resultViewer").innerHTML = '<div class="empty">任务完成后显示解析结果。</div>';
+          return;
+        }
+
+        if (state.view === "markdown") {
+          $("resultViewer").innerHTML = `<pre>${escapeHtml(result.markdown || "")}</pre>`;
+          return;
+        }
+
+        if (state.view === "text") {
+          $("resultViewer").innerHTML = `<pre>${escapeHtml(result.text || "")}</pre>`;
+          return;
+        }
+
+        if (state.view === "json") {
+          $("resultViewer").innerHTML = `<pre>${escapeHtml(JSON.stringify(result, null, 2))}</pre>`;
+          return;
+        }
+
+        const tables = result.tables || [];
+        $("resultViewer").innerHTML = tables.length
+          ? tables
+              .map(
+                (table, index) => `
+                  <article class="result-card">
+                    <strong>Table ${index + 1}</strong>
+                    <pre>${escapeHtml(JSON.stringify(table, null, 2))}</pre>
+                  </article>
+                `
+              )
+              .join("")
+          : '<div class="empty">没有解析到表格。</div>';
+      }
+
+      function escapeHtml(value) {
+        return String(value)
+          .replaceAll("&", "&amp;")
+          .replaceAll("<", "&lt;")
+          .replaceAll(">", "&gt;")
+          .replaceAll('"', "&quot;")
+          .replaceAll("'", "&#039;");
+      }
+
+      async function upload() {
+        if (!state.file) {
+          toast("请先选择文档");
+          return;
+        }
+
+        const form = new FormData();
+        form.append("file", state.file);
+        form.append("kb_id", $("kbId").value || "demo");
+        form.append("parser_mode", $("parserMode").value);
+        form.append("from_page", $("fromPage").value || "0");
+        if ($("toPage").value) form.append("to_page", $("toPage").value);
+
+        setBusy(true);
+        state.result = null;
+        $("resultViewer").innerHTML = '<div class="empty">等待解析结果。</div>';
+        $("events").innerHTML = '<div class="empty">任务已提交。</div>';
+
+        try {
+          const response = await fetch("/api/v1/documents", {
+            method: "POST",
+            body: form,
+          });
+          if (!response.ok) {
+            const text = await response.text();
+            throw new Error(text || `上传失败：${response.status}`);
+          }
+          const payload = await response.json();
+          $("taskId").textContent = payload.task_id;
+          $("docId").textContent = payload.doc_id;
+          $("statusText").textContent = payload.status;
+          toast("任务已创建");
+          await pollTask(payload.task_id);
+          state.timer = setInterval(() => pollTask(payload.task_id).catch((error) => toast(error.message)), 1500);
+        } catch (error) {
+          setBusy(false);
+          toast(error.message);
+        }
+      }
+
+      $("drop").addEventListener("click", () => $("fileInput").click());
+      $("drop").addEventListener("keydown", (event) => {
+        if (event.key === "Enter" || event.key === " ") $("fileInput").click();
+      });
+      $("drop").addEventListener("dragover", (event) => {
+        event.preventDefault();
+        $("drop").classList.add("drag");
+      });
+      $("drop").addEventListener("dragleave", () => $("drop").classList.remove("drag"));
+      $("drop").addEventListener("drop", (event) => {
+        event.preventDefault();
+        $("drop").classList.remove("drag");
+        setFile(event.dataTransfer.files[0]);
+      });
+      $("fileInput").addEventListener("change", (event) => setFile(event.target.files[0]));
+      $("uploadBtn").addEventListener("click", upload);
+      $("resetBtn").addEventListener("click", resetView);
+      $("parserMode").addEventListener("change", () => ($("modeHint").textContent = $("parserMode").value));
+      document.querySelectorAll(".tab-btn").forEach((button) => {
+        button.addEventListener("click", () => {
+          document.querySelectorAll(".tab-btn").forEach((item) => item.classList.remove("active"));
+          button.classList.add("active");
+          state.view = button.dataset.view;
+          renderResult();
+        });
+      });
+
+      checkHealth();
+    </script>
+  </body>
+</html>
