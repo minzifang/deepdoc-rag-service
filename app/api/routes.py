@@ -1,3 +1,4 @@
+import logging
 from pathlib import Path
 
 import orjson
@@ -5,8 +6,12 @@ from fastapi import APIRouter, File, Form, HTTPException, Response, UploadFile
 
 from app.core.config import get_settings
 from app.core.jobs import create_task_record, submit_parse_job
+from app.core.json_io import write_json_atomic
 from app.core.task_store import task_store
 from app.models.schemas import DocumentCreateResponse, DocumentResult, ParserMode, TaskRecord
+from app.services.format_service import FormatService
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1")
 
@@ -63,7 +68,34 @@ def get_document_result(doc_id: str) -> DocumentResult:
     path = get_settings().result_dir / f"{doc_id}.json"
     if not path.exists():
         raise HTTPException(status_code=404, detail="document result not found")
-    return DocumentResult.model_validate(orjson.loads(path.read_bytes()))
+
+    payload = orjson.loads(path.read_bytes())
+
+    # Live-rebuild markdown/text from sections+tables with the current
+    # FormatService. Historic results were produced by an older formatter
+    # that emitted nearly no headings; this transparent upgrade means an
+    # existing document immediately renders correctly without re-parsing
+    # the source PDF.
+    sections = payload.get("sections") or []
+    tables = payload.get("tables") or []
+    if sections:
+        try:
+            formatter = FormatService()
+            new_markdown = formatter.build_markdown(sections, tables)
+            new_text = formatter.build_text(sections)
+            if (new_markdown and new_markdown != payload.get("markdown")) or (
+                new_text and new_text != payload.get("text")
+            ):
+                payload["markdown"] = new_markdown
+                payload["text"] = new_text
+                try:
+                    write_json_atomic(path, payload)
+                except OSError as write_error:
+                    logger.warning("failed to persist re-formatted result for %s: %s", doc_id, write_error)
+        except Exception:  # pragma: no cover — formatter must never break GET
+            logger.exception("re-format failed for %s, returning stored markdown as-is", doc_id)
+
+    return DocumentResult.model_validate(payload)
 
 
 @router.get("/documents/{doc_id}/markdown")

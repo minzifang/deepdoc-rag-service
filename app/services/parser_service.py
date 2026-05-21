@@ -47,7 +47,16 @@ class DeepDocPdfAdapter:
         tables = self._parser._extract_table_figure(True, zoomin, True, True)
         self._parser._naive_vertical_merge()
         self._parser._concat_downward()
-        sections = [(box["text"], self._parser._line_tag(box, zoomin)) for box in self._parser.boxes]
+        sections = [
+            {
+                "text": box["text"],
+                "position_tag": self._parser._line_tag(box, zoomin),
+                "layout_type": box.get("layout_type", ""),
+                "layoutno": box.get("layoutno", ""),
+                "page_number": box.get("page_number"),
+            }
+            for box in self._parser.boxes
+        ]
         callback(0.8, "DeepDoc parsing finished")
         return sections, tables
 
@@ -70,7 +79,7 @@ class ParserService:
             return self._parse_pdf(path, mode, from_page, effective_to_page, callback)
         if suffix == ".docx":
             return self._parse_docx(path, callback)
-        if suffix in {".txt", ".md", ".markdown", ".py", ".js", ".ts", ".java", ".go", ".sql", ".csv"}:
+        if suffix in {".txt", ".md", ".markdown", ".py", ".js", ".ts", ".tsx", ".java", ".go", ".sql", ".csv", ".json", ".yaml", ".yml"}:
             return self._parse_text(path, callback)
 
         raise ValueError(f"unsupported file type: {suffix or filename}")
@@ -126,6 +135,26 @@ class ParserService:
     def _parse_text(self, path: Path, callback: ProgressCallback) -> tuple[str, list[Any], list[Any]]:
         callback(0.2, "Text parsing started")
         text = path.read_text(encoding="utf-8", errors="ignore")
+        suffix = path.suffix.lower()
+        language_by_suffix = {
+            ".py": "python",
+            ".js": "javascript",
+            ".ts": "typescript",
+            ".tsx": "tsx",
+            ".java": "java",
+            ".go": "go",
+            ".sql": "sql",
+            ".json": "json",
+            ".yaml": "yaml",
+            ".yml": "yaml",
+        }
+        if suffix in {".md", ".markdown"}:
+            callback(0.8, "Markdown text parsing finished")
+            return "plain-markdown", [(text.rstrip(), "")], []
+        if suffix in language_by_suffix:
+            language = language_by_suffix[suffix]
+            callback(0.8, "Code text parsing finished")
+            return "plain-code", [(f"```{language}\n{text.rstrip()}\n```", "")], []
         sections = [(part.strip(), "") for part in text.splitlines() if part.strip()]
         callback(0.8, "Text parsing finished")
         return "plain-text", sections, []

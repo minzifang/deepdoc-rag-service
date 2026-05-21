@@ -3,9 +3,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from uuid import uuid4
 
-import orjson
-
 from app.core.config import get_settings
+from app.core.json_io import write_json_atomic
 from app.core.task_store import task_store
 from app.models.schemas import DocumentResult, ParserMode, TaskRecord
 from app.services.format_service import FormatService
@@ -89,7 +88,7 @@ def _run_parse_job(
             },
         )
         result_path = get_settings().result_dir / f"{record.doc_id}.json"
-        result_path.write_bytes(orjson.dumps(result.model_dump(mode="json"), option=orjson.OPT_INDENT_2))
+        write_json_atomic(result_path, result.model_dump(mode="json"))
         task_store.update(
             task_id,
             status="done",
