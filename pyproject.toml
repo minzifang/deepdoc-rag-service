@@ -1,6 +1,6 @@
 [project]
 name = "deepdoc-rag-service"
-version = "0.1.0"
+version = "0.1.1"
 description = "Standalone document understanding service built around RAGFlow DeepDoc."
 readme = "README.md"
 requires-python = ">=3.13,<3.15"
@@ -57,3 +57,5 @@ target-version = "py313"
 
 [tool.pytest.ini_options]
 pythonpath = ["."]
+testpaths = ["tests"]
+norecursedirs = [".venv", "vendor"]

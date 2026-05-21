@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.1 - 2026-05-21
+
+- 修复 GitHub Actions 中 pytest 误收集 `vendor/ragflow` 上游测试的问题。
+- CI 明确只运行本服务的 `tests/` 测试目录。
+- 更新 GitHub Actions 依赖版本，减少 Dependabot 初始 PR 噪音。
+
 ## 2026-05-20
 
 - 初始化独立 DeepDoc Parse 服务。

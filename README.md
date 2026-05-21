@@ -57,6 +57,15 @@ uv run python scripts/download_models.py --mirror https://hf-mirror.com
 uv run python scripts/download_models.py --list
 ```
 
+## 开发检查
+
+本项目把 RAGFlow 作为子模块引用，测试范围只覆盖服务自身代码：
+
+```bash
+uv run ruff check app tests infinity scripts
+uv run pytest tests
+```
+
 ## API
 
 测试页面：
